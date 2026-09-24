@@ -30,6 +30,7 @@ class ModelAssistedDifferenceStrategy(BaseAuditStrategy):
         seed: Optional[int] = 42,
         thresholds: QualityThresholds = QualityThresholds(),
         policy: Optional[AcceptanceDecisionPolicy] = None,
+        human_auditor_error_rate: float = 0.0,
     ):
         name_suffix = " (Active Importance)" if active_sampling else " (Difference Estimator)"
         super().__init__(
@@ -37,6 +38,7 @@ class ModelAssistedDifferenceStrategy(BaseAuditStrategy):
             budget_fraction=budget_fraction,
             thresholds=thresholds,
             policy=policy,
+            human_auditor_error_rate=human_auditor_error_rate,
         )
         self.active_sampling = active_sampling
         self.rng = np.random.default_rng(seed)
@@ -51,7 +53,8 @@ class ModelAssistedDifferenceStrategy(BaseAuditStrategy):
             # Standard SRS for difference estimator
             sample_indices = self.rng.choice(N, size=n, replace=False)
             
-            y_sample = batch.defects[sample_indices].astype(np.float64)
+            observed_y = self._observe_defects(batch, sample_indices, self.rng)
+            y_sample = observed_y.astype(np.float64)
             s_sample = batch.surrogate_scores[sample_indices].astype(np.float64)
             residuals = y_sample - s_sample
             
@@ -70,7 +73,8 @@ class ModelAssistedDifferenceStrategy(BaseAuditStrategy):
             
             sample_indices = self.rng.choice(N, size=n, replace=False, p=sampling_probs)
             
-            y_sample = batch.defects[sample_indices].astype(np.float64)
+            observed_y = self._observe_defects(batch, sample_indices, self.rng)
+            y_sample = observed_y.astype(np.float64)
             pi_sample = sampling_probs[sample_indices] * n
             
             p_hat = float(np.sum(y_sample / pi_sample) / N)

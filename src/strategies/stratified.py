@@ -26,12 +26,14 @@ class RiskStratifiedStrategy(BaseAuditStrategy):
         seed: Optional[int] = 42,
         thresholds: QualityThresholds = QualityThresholds(),
         policy: Optional[AcceptanceDecisionPolicy] = None,
+        human_auditor_error_rate: float = 0.0,
     ):
         super().__init__(
             name="Stratified: Risk & Neyman Allocation",
             budget_fraction=budget_fraction,
             thresholds=thresholds,
             policy=policy,
+            human_auditor_error_rate=human_auditor_error_rate,
         )
         self.num_strata = num_strata
         self.rng = np.random.default_rng(seed)
@@ -80,7 +82,8 @@ class RiskStratifiedStrategy(BaseAuditStrategy):
             sampled_h = self.rng.choice(strata_indices[h], size=nh, replace=False)
             sampled_list.append(sampled_h)
             
-            kh = int(np.sum(batch.defects[sampled_h]))
+            observed_h = self._observe_defects(batch, sampled_h, self.rng)
+            kh = int(np.sum(observed_h))
             y_bar_h = kh / nh if nh > 0 else 0.0
             s2_h = (y_bar_h * (1.0 - y_bar_h) * nh / (nh - 1)) if nh > 1 else 0.0
             

@@ -54,12 +54,14 @@ class SimpleRandomSamplingStrategy(BaseAuditStrategy):
         seed: Optional[int] = 42,
         thresholds: QualityThresholds = QualityThresholds(),
         policy: Optional[AcceptanceDecisionPolicy] = None,
+        human_auditor_error_rate: float = 0.0,
     ):
         super().__init__(
             name="Baseline: Simple Random Sampling (SRS)",
             budget_fraction=budget_fraction,
             thresholds=thresholds,
             policy=policy,
+            human_auditor_error_rate=human_auditor_error_rate,
         )
         self.rng = np.random.default_rng(seed)
 
@@ -67,9 +69,10 @@ class SimpleRandomSamplingStrategy(BaseAuditStrategy):
         N = batch.size
         n = max(1, int(np.floor(self.budget_fraction * N)))
         
-        # Fast array indexing
+        # Fast array indexing with optional label noise
         sample_indices = self.rng.choice(N, size=n, replace=False)
-        defects = int(np.sum(batch.defects[sample_indices]))
+        observed_defects = self._observe_defects(batch, sample_indices, self.rng)
+        defects = int(np.sum(observed_defects))
         
         p_hat = float(defects / n)
         ci_lower, ci_upper = compute_wilson_ci(defects, n, population_size=N, confidence=0.95)

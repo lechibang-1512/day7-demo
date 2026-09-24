@@ -27,12 +27,14 @@ class EmpiricalBayesStrategy(BaseAuditStrategy):
         seed: Optional[int] = 42,
         thresholds: QualityThresholds = QualityThresholds(),
         policy: Optional[AcceptanceDecisionPolicy] = None,
+        human_auditor_error_rate: float = 0.0,
     ):
         super().__init__(
             name="Bayesian: Empirical Beta-Binomial",
             budget_fraction=budget_fraction,
             thresholds=thresholds,
             policy=policy,
+            human_auditor_error_rate=human_auditor_error_rate,
         )
         self.vendor_priors = vendor_priors or {
             "vendor_tier1": (1.2, 98.8),    # Mean ~ 1.2%
@@ -49,7 +51,8 @@ class EmpiricalBayesStrategy(BaseAuditStrategy):
         n = max(1, int(np.floor(self.budget_fraction * N)))
         
         sample_indices = self.rng.choice(N, size=n, replace=False)
-        k = int(np.sum(batch.defects[sample_indices]))
+        observed_defects = self._observe_defects(batch, sample_indices, self.rng)
+        k = int(np.sum(observed_defects))
         
         alpha_0, beta_0 = self.vendor_priors.get(batch.vendor_id, self.default_prior)
         

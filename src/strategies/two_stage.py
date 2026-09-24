@@ -30,12 +30,14 @@ class TwoStageAcceptanceStrategy(BaseAuditStrategy):
         seed: Optional[int] = 42,
         thresholds: QualityThresholds = QualityThresholds(),
         policy: Optional[AcceptanceDecisionPolicy] = None,
+        human_auditor_error_rate: float = 0.0,
     ):
         super().__init__(
             name="Sequential: Two-Stage Double Sampling",
             budget_fraction=budget_fraction,
             thresholds=thresholds,
             policy=policy,
+            human_auditor_error_rate=human_auditor_error_rate,
         )
         self.stage1_fraction = stage1_fraction
         self.c_acc1 = c_acc1
@@ -52,7 +54,8 @@ class TwoStageAcceptanceStrategy(BaseAuditStrategy):
         stage1_indices = all_shuffled_indices[:n1]
         
         # 1. Audit Stage 1
-        k1 = int(np.sum(batch.defects[stage1_indices]))
+        observed_stage1 = self._observe_defects(batch, stage1_indices, self.rng)
+        k1 = int(np.sum(observed_stage1))
         
         # Check Stage 1 early stopping
         if k1 <= self.c_acc1:
@@ -91,7 +94,8 @@ class TwoStageAcceptanceStrategy(BaseAuditStrategy):
             
         # 2. Ambiguous result -> Stage 2
         stage2_indices = all_shuffled_indices[n1:n1 + n2]
-        k2 = int(np.sum(batch.defects[stage2_indices]))
+        observed_stage2 = self._observe_defects(batch, stage2_indices, self.rng)
+        k2 = int(np.sum(observed_stage2))
         
         total_defects = k1 + k2
         combined_indices = all_shuffled_indices[:n_total]

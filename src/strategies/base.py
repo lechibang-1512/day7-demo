@@ -17,11 +17,26 @@ class BaseAuditStrategy(ABC):
         budget_fraction: float = 0.01,  # 1% standard audit budget
         thresholds: QualityThresholds = QualityThresholds(),
         policy: Optional[AcceptanceDecisionPolicy] = None,
+        human_auditor_error_rate: float = 0.0,  # Simulate auditor mistakes (Label Noise)
     ):
         self.name = name
         self.budget_fraction = budget_fraction
         self.thresholds = thresholds
         self.policy = policy or AcceptanceDecisionPolicy(thresholds=thresholds)
+        self.human_auditor_error_rate = human_auditor_error_rate
+
+    def _observe_defects(self, batch: Batch, sample_indices: np.ndarray, rng: np.random.Generator) -> np.ndarray:
+        """
+        Retrieves ground truth defects for the sampled indices and optionally
+        injects human auditor label noise (flipping the truth with probability = human_auditor_error_rate).
+        """
+        true_defects = batch.defects[sample_indices]
+        if self.human_auditor_error_rate <= 0.0:
+            return true_defects
+            
+        # Inject symmetric label noise
+        flips = (rng.random(len(sample_indices)) < self.human_auditor_error_rate)
+        return np.where(flips, ~true_defects, true_defects)
 
     @abstractmethod
     def audit(self, batch: Batch, **kwargs) -> AuditResult:
