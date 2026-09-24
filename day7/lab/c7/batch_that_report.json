@@ -1,0 +1,55 @@
+{
+  "timestamp": "2026-09-24T16:55:21",
+  "vendor": "V2 (Majority Vote 3 ng\u01b0\u1eddi MTurk)",
+  "batch_size": 2000,
+  "true_defect_rate": 0.1085,
+  "classification": "BAD BATCH",
+  "audit_allocation": [
+    35,
+    33,
+    22,
+    10
+  ],
+  "defects_found": [
+    1,
+    7,
+    6,
+    3
+  ],
+  "models": {
+    "M2_Stratified": {
+      "p_hat": 13.38,
+      "ci90": [
+        8.53,
+        18.97
+      ],
+      "P_greater_8pct": 0.97,
+      "decision": "REJECT"
+    },
+    "M4_Prior_Guard": {
+      "p_hat": 10.87,
+      "ci90": [
+        8.01,
+        14.06
+      ],
+      "P_greater_8pct": 0.95,
+      "decision": "REJECT"
+    },
+    "SRS": {
+      "p_hat": 12.0,
+      "decision": "REJECT"
+    }
+  },
+  "cost_analysis": {
+    "bad_batch": {
+      "cost_if_correctly_rejected": 100.0,
+      "cost_if_mistakenly_accepted": 150.0,
+      "net_penalty_avoided": 50.0
+    },
+    "good_batch": {
+      "cost_if_correctly_accepted": 100.0,
+      "cost_if_mistakenly_rejected": 110.0,
+      "net_friction_penalty": 10.0
+    }
+  }
+}

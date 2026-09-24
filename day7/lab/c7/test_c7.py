@@ -59,8 +59,19 @@ class TestC7VendorAcceptance(unittest.TestCase):
         self.assertEqual(decision, "REJECT")
         
     def test_8_no_leakage_dev_eval(self):
-        # Đảm bảo pipeline hoạt động tốt không dính leakage
-        self.assertTrue(True)
+        # Đảm bảo pipeline tái lập đầy đủ: kiểm tra real_cifar10n_pca và chung_minh_batch_that
+        from chung_minh_batch_that import run_proof
+        from real_cifar10n_pca import run_evaluation
+        
+        rep_proof = run_proof()
+        self.assertEqual(rep_proof["models"]["M2_Stratified"]["decision"], "REJECT")
+        self.assertIn("cost_analysis", rep_proof)
+        self.assertEqual(rep_proof["cost_analysis"]["bad_batch"]["cost_if_correctly_rejected"], 100.0)
+        
+        rep_cifar = run_evaluation()
+        self.assertIn("results", rep_cifar)
+        self.assertAlmostEqual(rep_cifar["results"]["M2"]["MAE"], 1.78, places=1)
+        self.assertAlmostEqual(rep_cifar["results"]["SRS"]["recall"], 0.82, places=1)
 
 if __name__ == '__main__':
     # Chạy các test

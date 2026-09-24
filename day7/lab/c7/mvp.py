@@ -7,13 +7,33 @@ import numpy as np
 import pandas as pd
 from scipy import stats
 
+import os
+
 def print_color(text, color_code):
     print(f"\033[{color_code}m{text}\033[0m")
 
 def print_header(text):
     print_color(f"\n=== {text} ===", "1;36")
 
-def get_policy():
+def get_policy(policy_file=None):
+    if policy_file is None:
+        candidates = [
+            "policy_c7.json",
+            os.path.join(os.path.dirname(__file__), "policy_c7.json"),
+            os.path.join(os.getcwd(), "day7/lab/c7/policy_c7.json")
+        ]
+        for c in candidates:
+            if os.path.exists(c):
+                policy_file = c
+                break
+
+    if policy_file and os.path.exists(policy_file):
+        with open(policy_file, "r", encoding="utf-8") as f:
+            content = f.read()
+            policy = json.loads(content)
+            policy_hash = hashlib.sha256(content.encode('utf-8')).hexdigest()[:16]
+            return policy, policy_hash
+
     policy = {
         "AQL": 0.03,
         "LTPD": 0.08,
@@ -183,24 +203,48 @@ def plan(batch_file, out_file, auto_review=False):
     df_audit[['item_id', 'stratum', 'risk_score', 'is_defect']].to_csv(out_file, index=False)
     print(f"✅ Đã lập kế hoạch audit {n} items lưu vào {out_file} (Neyman Allocation: {strata['n_h'].tolist()})")
 
-def run_decide(batch_file, audit_file, vendor):
+def run_decide(batch_file, audit_file, vendor, report_file=None):
     df_batch = pd.read_csv(batch_file)
     df_audit = pd.read_csv(audit_file)
     
     p_hat, prob_good, prob_bad, alpha, beta_ = compute_stratified(df_batch, df_audit)
     decision = decide(prob_good, prob_bad)
+    policy, phash = get_policy()
     
     res = {
         "vendor": vendor,
+        "policy_hash": phash,
         "items_audited": len(df_audit),
-        "p_hat": p_hat,
-        "P(p <= 3%)": prob_good,
-        "P(p >= 8%)": prob_bad,
+        "p_hat": round(float(p_hat), 4),
+        "P(p <= 3%)": round(float(prob_good), 4),
+        "P(p >= 8%)": round(float(prob_bad), 4),
         "decision": decision
     }
     
+    if 'true_defect' in df_batch.columns:
+        true_p = float(df_batch['true_defect'].mean())
+        audit_cost = len(df_audit) * float(policy.get("cost_audit_per_item", 1.0))
+        penalty = 0.0
+        if decision == "ACCEPT" and true_p >= policy["LTPD"]:
+            penalty = float(policy["cost_false_accept"])
+        elif decision == "REJECT" and true_p <= policy["AQL"]:
+            penalty = float(policy["cost_false_reject"])
+        res["cost_analysis"] = {
+            "true_defect_rate": round(true_p, 4),
+            "batch_type": "BAD" if true_p >= policy["LTPD"] else ("GOOD" if true_p <= policy["AQL"] else "BORDERLINE"),
+            "audit_cost": audit_cost,
+            "penalty": penalty,
+            "total_cost": audit_cost + penalty
+        }
+    
     print_header("KẾT QUẢ AUDIT")
     print(json.dumps(res, indent=2))
+    
+    if report_file:
+        with open(report_file, "w", encoding="utf-8") as f:
+            json.dump(res, f, indent=2)
+        print(f"✅ Báo cáo audit đã lưu vào {report_file}")
+        
     return res
 
 if __name__ == "__main__":
@@ -211,6 +255,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch", type=str)
     parser.add_argument("--audit", type=str)
     parser.add_argument("--out", type=str)
+    parser.add_argument("--report", type=str)
     parser.add_argument("--auto-review", action="store_true")
     
     args = parser.parse_args()
@@ -222,4 +267,4 @@ if __name__ == "__main__":
     elif args.cmd == "plan":
         plan(args.batch, args.out, args.auto_review)
     elif args.cmd == "decide":
-        run_decide(args.batch, args.audit, args.vendor)
+        run_decide(args.batch, args.audit, args.vendor, report_file=args.report or args.out)

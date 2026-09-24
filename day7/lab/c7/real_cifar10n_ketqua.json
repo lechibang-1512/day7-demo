@@ -1,0 +1,29 @@
+{
+  "dataset": "CIFAR-10N (Wei et al., ICLR 2022, CC BY-NC 4.0)",
+  "batches_evaluated": 45,
+  "items_per_batch": 2000,
+  "audit_budget": 100,
+  "feature_model": "PCA (16 components) + LogisticRegression",
+  "mean_model_auc": 0.69,
+  "results": {
+    "SRS": {
+      "MAE": 1.88,
+      "recall": 0.82,
+      "cost_per_batch": 3.36,
+      "ci90_coverage": 0.908
+    },
+    "M2": {
+      "MAE": 1.78,
+      "recall": 0.84,
+      "cost_per_batch": 3.11,
+      "ci90_coverage": 0.745
+    },
+    "M4": {
+      "MAE": 0.87,
+      "recall": 0.93,
+      "cost_per_batch": 2.73,
+      "ci90_coverage": 0.885
+    }
+  },
+  "execution_time_seconds": 0.42
+}

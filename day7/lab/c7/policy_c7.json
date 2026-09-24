@@ -1,0 +1,8 @@
+{
+  "AQL": 0.03,
+  "LTPD": 0.08,
+  "cost_false_accept": 50,
+  "cost_false_reject": 10,
+  "cost_audit_per_item": 1.0,
+  "description": "Pre-fixed Acceptance Policy C7: AQL 3%, LTPD 8%, False Accept Cost 50, False Reject Cost 10"
+}
