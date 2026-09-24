@@ -105,6 +105,8 @@ class ScenarioMetrics:
     ci_coverage: float             # Fraction of batches where true p in [ci_lower, ci_upper]
     average_sample_number: float   # Average number of items audited per batch (Cost)
     avg_budget_fraction: float     # Average % of batch audited
+    cost_per_accepted_batch: float # Avg items audited for batches that were ACCEPTED
+    cost_per_rejected_batch: float # Avg items audited for batches that were REJECTED
     
     # Composite Score: (1 - MAE) * 0.5 + Bad_Batch_Recall * 0.5
     composite_score: float = 0.0

@@ -38,6 +38,8 @@ class BenchmarkEvaluator:
         squared_errors = []
         in_ci_list = []
         audited_counts = []
+        audited_counts_accepted = []
+        audited_counts_rejected = []
         budget_fractions = []
         
         # Classification counters
@@ -68,6 +70,11 @@ class BenchmarkEvaluator:
             
             audited_counts.append(result.items_audited)
             budget_fractions.append(result.budget_fraction_used)
+            
+            if result.decision == Decision.ACCEPT:
+                audited_counts_accepted.append(result.items_audited)
+            elif result.decision == Decision.REJECT:
+                audited_counts_rejected.append(result.items_audited)
             
             # Ground truth classification based on pre-fixed AQL / LTPD
             is_good = (p_true <= self.thresholds.aql)
@@ -107,6 +114,9 @@ class BenchmarkEvaluator:
         false_accept_rate = 1.0 - bad_batch_recall
         rework_precision = (rework_correctly_flagged / rework_batches_total) if rework_batches_total > 0 else 1.0
         
+        cost_per_accepted = float(np.mean(audited_counts_accepted)) if audited_counts_accepted else 0.0
+        cost_per_rejected = float(np.mean(audited_counts_rejected)) if audited_counts_rejected else 0.0
+        
         # Composite score according to Challenge C7 primary metric:
         # Lower MAE is better, Higher Recall is better.
         # Score = (1.0 - MAE) * 0.5 + (bad_batch_recall) * 0.5
@@ -127,6 +137,8 @@ class BenchmarkEvaluator:
             ci_coverage=ci_coverage,
             average_sample_number=asn,
             avg_budget_fraction=avg_budget,
+            cost_per_accepted_batch=cost_per_accepted,
+            cost_per_rejected_batch=cost_per_rejected,
             composite_score=composite_score,
         )
 
@@ -154,6 +166,8 @@ class BenchmarkEvaluator:
                     "95% CI Coverage (%)": round(metrics.ci_coverage * 100, 1),
                     "Avg Items Audited (ASN)": round(metrics.average_sample_number, 1),
                     "Avg Budget (%)": round(metrics.avg_budget_fraction * 100, 2),
+                    "Cost / Accept": round(metrics.cost_per_accepted_batch, 1),
+                    "Cost / Reject": round(metrics.cost_per_rejected_batch, 1),
                     "Composite Score": round(metrics.composite_score, 4),
                 })
                 
