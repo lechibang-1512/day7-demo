@@ -30,36 +30,6 @@ class VendorProfile:
         self.complexity_sensitivity = complexity_sensitivity
 
 
-DEFAULT_VENDORS = {
-    "vendor_tier1": VendorProfile(
-        vendor_id="vendor_tier1",
-        name="Tier-1 High Quality Vendor",
-        base_error_rate=0.012,  # 1.2% base error (Target: ACCEPT)
-        error_variance=0.004,
-        annotator_skill_variance=0.3,
-    ),
-    "vendor_flaky": VendorProfile(
-        vendor_id="vendor_flaky",
-        name="Flaky / Bimodal Vendor",
-        base_error_rate=0.045,  # Mixed batches (2% to 12%)
-        error_variance=0.035,
-        annotator_skill_variance=0.8,
-    ),
-    "vendor_tier3": VendorProfile(
-        vendor_id="vendor_tier3",
-        name="Tier-3 Low Quality Vendor",
-        base_error_rate=0.085,  # 8.5% base error (Target: REJECT)
-        error_variance=0.020,
-        annotator_skill_variance=0.6,
-    ),
-    "vendor_borderline": VendorProfile(
-        vendor_id="vendor_borderline",
-        name="Borderline / Drift Vendor",
-        base_error_rate=0.038,  # 3.8% error (Target: REWORK)
-        error_variance=0.008,
-        annotator_skill_variance=0.4,
-    ),
-}
 
 
 class BatchGenerator:
@@ -67,6 +37,26 @@ class BatchGenerator:
 
     def __init__(self, seed: Optional[int] = 42):
         self.rng = np.random.default_rng(seed)
+
+    def generate_random_vendors(self, num_vendors: int = 5) -> Dict[str, VendorProfile]:
+        vendors = {}
+        for i in range(num_vendors):
+            # Base error rate mostly between 0.5% and 15%
+            base_error = float(self.rng.beta(1.5, 15.0)) * 0.2
+            base_error = max(0.005, min(0.20, base_error))
+            
+            err_var = float(self.rng.uniform(0.002, 0.040))
+            skill_var = float(self.rng.uniform(0.2, 1.2))
+            
+            v_id = f"vendor_rand_{i}"
+            vendors[v_id] = VendorProfile(
+                vendor_id=v_id,
+                name=f"Random Vendor {i} (Err: {base_error:.1%})",
+                base_error_rate=base_error,
+                error_variance=err_var,
+                annotator_skill_variance=skill_var,
+            )
+        return vendors
 
     def generate_batch(
         self,
@@ -134,36 +124,29 @@ class BatchGenerator:
     ) -> Dict[str, List[Batch]]:
         suite: Dict[str, List[Batch]] = {}
         
-        suite["high_quality"] = [
-            self.generate_batch(f"hq_{i}", DEFAULT_VENDORS["vendor_tier1"], batch_size=batch_size)
-            for i in range(num_batches_per_scenario)
-        ]
+        random_vendors = self.generate_random_vendors(num_vendors=5)
         
-        suite["bad_quality"] = [
-            self.generate_batch(f"bad_{i}", DEFAULT_VENDORS["vendor_tier3"], batch_size=batch_size)
-            for i in range(num_batches_per_scenario)
-        ]
+        # Categorize generated batches dynamically based on true error rate target to keep scenario splits
+        suite["high_quality"] = []
+        suite["bad_quality"] = []
+        suite["borderline_rework"] = []
+        suite["mixed_flaky"] = []
         
-        suite["borderline_rework"] = [
-            self.generate_batch(f"border_{i}", DEFAULT_VENDORS["vendor_borderline"], batch_size=batch_size)
-            for i in range(num_batches_per_scenario)
-        ]
-        
-        suite["mixed_flaky"] = [
-            self.generate_batch(f"flaky_{i}", DEFAULT_VENDORS["vendor_flaky"], batch_size=batch_size)
-            for i in range(num_batches_per_scenario)
-        ]
-        
-        clustered_vendor = VendorProfile(
-            vendor_id="vendor_clustered",
-            name="Clustered Outlier Vendor",
-            base_error_rate=0.035,
-            error_variance=0.02,
-            annotator_skill_variance=1.8,
-        )
-        suite["stress_clustered"] = [
-            self.generate_batch(f"clust_{i}", clustered_vendor, batch_size=batch_size)
-            for i in range(num_batches_per_scenario)
-        ]
+        for i in range(num_batches_per_scenario * 4):
+            vendor = self.rng.choice(list(random_vendors.values()))
+            batch = self.generate_batch(f"batch_{i}", vendor, batch_size=batch_size)
+            
+            p = batch.true_error_rate
+            if p <= 0.02:
+                suite["high_quality"].append(batch)
+            elif p >= 0.06:
+                suite["bad_quality"].append(batch)
+            elif 0.02 < p < 0.06:
+                suite["borderline_rework"].append(batch)
+                
+        # Fill mixed_flaky with a random selection of the above
+        all_batches = suite["high_quality"] + suite["bad_quality"] + suite["borderline_rework"]
+        if all_batches:
+            suite["mixed_flaky"] = [self.rng.choice(all_batches) for _ in range(num_batches_per_scenario)]
         
         return suite

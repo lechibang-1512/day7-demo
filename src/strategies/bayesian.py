@@ -36,13 +36,7 @@ class EmpiricalBayesStrategy(BaseAuditStrategy):
             policy=policy,
             human_auditor_error_rate=human_auditor_error_rate,
         )
-        self.vendor_priors = vendor_priors or {
-            "vendor_tier1": (1.2, 98.8),    # Mean ~ 1.2%
-            "vendor_flaky": (2.0, 40.0),     # Mean ~ 4.7%
-            "vendor_tier3": (8.5, 91.5),    # Mean ~ 8.5%
-            "vendor_borderline": (3.8, 96.2),# Mean ~ 3.8%
-            "vendor_clustered": (2.5, 60.0), # Mean ~ 4.0%
-        }
+        self.vendor_priors = vendor_priors or {}
         self.default_prior = default_prior
         self.rng = np.random.default_rng(seed)
 
