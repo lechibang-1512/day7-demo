@@ -9,7 +9,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from src.types import QualityThresholds, Decision
-from src.data_generator import BatchGenerator, DEFAULT_VENDORS
+from src.data_generator import BatchGenerator, VendorProfile
 from src.decision_policy import AcceptanceDecisionPolicy
 from src.strategies import (
     SimpleRandomSamplingStrategy,
@@ -33,8 +33,8 @@ def run_demo():
     policy = AcceptanceDecisionPolicy(thresholds=thresholds)
     generator = BatchGenerator(seed=2026)
 
-    # 2. Simulate Vendor Batch Arrival
-    vendor = DEFAULT_VENDORS["vendor_flaky"]
+    # 2. Simulate Vendor Batch Arrival (Dynamically generated vendor)
+    vendor = list(generator.generate_random_vendors(num_vendors=1).values())[0]
     batch_size = 10_000
     batch = generator.generate_batch(
         batch_id="BATCH-VINAI-2026-09",

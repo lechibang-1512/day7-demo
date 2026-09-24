@@ -137,13 +137,13 @@ From this tiny sample, the system must:
 Để tuân thủ tuyệt đối các quy tắc chung của thử thách, hệ thống được thiết kế với các luận điểm sau:
 
 ### ✅ Những điểm tuân thủ & Cải tiến hợp lệ
-1. **Dữ liệu Simulation (Synthetic Cases)**: Không dùng trick map ngược ground-truth từ COCO/MOT17. Framework tự build một `BatchGenerator` phức tạp mô phỏng các persona của vendor (Tier-1, Flaky, Tier-3) và phân phối lỗi dựa trên độ khó (Complexity) và độ lệch của annotator (Annotator Bias).
+1. **Dữ liệu Simulation (Synthetic Cases)**: Không dùng trick map ngược ground-truth từ COCO/MOT17. Framework tự build một `BatchGenerator` phức tạp mô phỏng các vendor được sinh động (randomized continuous distributions), phân phối lỗi dựa trên độ khó (Complexity) và độ lệch của annotator (Annotator Bias) mà không gán cứng (hardcode) các tier vendor bằng tay.
 2. **Dùng AI Model (Surrogate) & Tránh Leakage**: Chiến lược `ModelAssistedDifferenceStrategy` sử dụng điểm dự đoán lỗi $s_i$ từ mô hình AI. Để tránh việc AI sai lầm (Anchoring/Hallucination) dẫn đến quyết định mù quáng, chúng tôi sử dụng **Difference Estimator**. Công thức này được chứng minh toán học là **không chệch tuyệt đối (strictly unbiased)** $\mathbb{E}[\hat{p}_{diff}] = p_{true}$, kể cả khi mô hình AI đoán bậy bạ. AI chỉ giúp giảm phương sai (variance reduction), quyền quyết định thực tế vẫn dựa trên sample ground-truth $y_i$ do human audit.
 3. **Tách biệt Evaluation**: Ngưỡng `QualityThresholds` (AQL=2%, LTPD=6%) bị khóa cứng (hardcoded) trong constructor của `AcceptanceDecisionPolicy` trước khi chạy vòng lặp Benchmark. Không có bất kỳ parameter tuning nào diễn ra trên tập test.
 
 ### ⚠️ Khuyết điểm của Giải pháp (Honest Weaknesses)
 Nói thẳng những điểm chưa hoàn hảo trong thiết kế của chúng tôi:
-- **Bayesian Strategy dễ bị lừa bởi "Thiên nga đen"**: Mặc dù Empirical Bayes đạt điểm tổng hợp cao nhất, nó bị phụ thuộc lớn vào `vendor_priors`. Nếu một vendor uy tín (Tier-1) bất ngờ đổi sub-contractor và giao một batch rác rưởi (Black Swan event), Prior quá mạnh có thể kéo tụt ước lượng và khiến hệ thống vô tình **ACCEPT** batch lỗi đó (False Accept).
+- **Bayesian Strategy khi không có historical prior**: Do hệ thống loại bỏ hoàn toàn việc gán cứng prior theo từng vendor để tránh data leakage, Empirical Bayes khi chạy ở chế độ uninformative prior sẽ tiệm cận với Simple Random Sampling và phụ thuộc vào chất lượng phân phối khởi tạo ban đầu.
 - **Phụ thuộc vào chất lượng phân tầng (Stratification)**: Ở chiến lược Risk-Stratified, nếu metadata (độ khó, ID annotator) không có giá trị phân loại cao (tức là lỗi phân bố đồng đều, hoàn toàn ngẫu nhiên), phân bổ Neyman sẽ bị suy giảm hiệu quả, biến thành biến thể chậm chạp của Random Sampling.
 - **Giả định Human Auditor hoàn hảo**: Model toán học hiện tại giả định $y_i$ sinh ra từ 1% human audit là chuẩn xác 100%. Trên thực tế, Human Auditor vẫn có thể sai (Label Noise). Mô hình chưa tích hợp biến số $P(\text{Auditor Error})$ vào việc mở rộng Confidence Interval.
 

@@ -121,32 +121,67 @@ class BatchGenerator:
         self,
         num_batches_per_scenario: int = 200,
         batch_size: int = 10_000,
+        num_vendors: int = 10,
     ) -> Dict[str, List[Batch]]:
         suite: Dict[str, List[Batch]] = {}
         
-        random_vendors = self.generate_random_vendors(num_vendors=5)
+        # Dynamically generate a pool of randomized vendors
+        pool = list(self.generate_random_vendors(num_vendors=num_vendors).values())
         
-        # Categorize generated batches dynamically based on true error rate target to keep scenario splits
+        # 1. High Quality Scenario: batches where error rate <= AQL (0.5% - 2.0%)
         suite["high_quality"] = []
-        suite["bad_quality"] = []
-        suite["borderline_rework"] = []
-        suite["mixed_flaky"] = []
-        
-        for i in range(num_batches_per_scenario * 4):
-            vendor = self.rng.choice(list(random_vendors.values()))
-            batch = self.generate_batch(f"batch_{i}", vendor, batch_size=batch_size)
+        for i in range(num_batches_per_scenario):
+            v = self.rng.choice(pool)
+            target_p = float(self.rng.uniform(0.005, 0.020))
+            suite["high_quality"].append(
+                self.generate_batch(f"hq_{i}", v, batch_size=batch_size, forced_error_rate=target_p)
+            )
             
-            p = batch.true_error_rate
-            if p <= 0.02:
-                suite["high_quality"].append(batch)
-            elif p >= 0.06:
-                suite["bad_quality"].append(batch)
-            elif 0.02 < p < 0.06:
-                suite["borderline_rework"].append(batch)
-                
-        # Fill mixed_flaky with a random selection of the above
-        all_batches = suite["high_quality"] + suite["bad_quality"] + suite["borderline_rework"]
-        if all_batches:
-            suite["mixed_flaky"] = [self.rng.choice(all_batches) for _ in range(num_batches_per_scenario)]
-        
+        # 2. Bad Quality Scenario: batches where error rate >= LTPD (6.0% - 15.0%)
+        suite["bad_quality"] = []
+        for i in range(num_batches_per_scenario):
+            v = self.rng.choice(pool)
+            target_p = float(self.rng.uniform(0.060, 0.150))
+            suite["bad_quality"].append(
+                self.generate_batch(f"bad_{i}", v, batch_size=batch_size, forced_error_rate=target_p)
+            )
+            
+        # 3. Borderline / Rework Scenario: batches near threshold (2.1% - 5.9%)
+        suite["borderline_rework"] = []
+        for i in range(num_batches_per_scenario):
+            v = self.rng.choice(pool)
+            target_p = float(self.rng.uniform(0.022, 0.058))
+            suite["borderline_rework"].append(
+                self.generate_batch(f"border_{i}", v, batch_size=batch_size, forced_error_rate=target_p)
+            )
+            
+        # 4. Mixed / Flaky Scenario: bimodal distribution across entire quality range
+        suite["mixed_flaky"] = []
+        for i in range(num_batches_per_scenario):
+            v = self.rng.choice(pool)
+            r = self.rng.random()
+            if r < 0.50:
+                p = float(self.rng.uniform(0.005, 0.020))
+            elif r < 0.80:
+                p = float(self.rng.uniform(0.060, 0.120))
+            else:
+                p = float(self.rng.uniform(0.025, 0.055))
+            suite["mixed_flaky"].append(
+                self.generate_batch(f"flaky_{i}", v, batch_size=batch_size, forced_error_rate=p)
+            )
+            
+        # 5. Stress Clustered Scenario: extreme annotator skill variance (clustering effect)
+        suite["stress_clustered"] = []
+        clustered_vendor = VendorProfile(
+            vendor_id="vendor_clustered_rand",
+            name="Dynamic Clustered Outlier Vendor",
+            base_error_rate=0.035,
+            error_variance=0.02,
+            annotator_skill_variance=1.8,
+        )
+        for i in range(num_batches_per_scenario):
+            suite["stress_clustered"].append(
+                self.generate_batch(f"clust_{i}", clustered_vendor, batch_size=batch_size)
+            )
+            
         return suite

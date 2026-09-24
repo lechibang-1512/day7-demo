@@ -11,7 +11,7 @@ from typing import List, Dict
 import numpy as np
 import matplotlib.pyplot as plt
 from src.types import QualityThresholds, Decision
-from src.data_generator import BatchGenerator, DEFAULT_VENDORS
+from src.data_generator import BatchGenerator
 from src.strategies import (
     SimpleRandomSamplingStrategy,
     TwoStageAcceptanceStrategy,
@@ -40,6 +40,7 @@ def plot_operating_characteristic_curves(
     ]
     
     generator = BatchGenerator(seed=123)
+    vendor = list(generator.generate_random_vendors(num_vendors=1).values())[0]
     results = {strat.name: [] for strat in strategies}
     
     for p in error_rates:
@@ -48,7 +49,7 @@ def plot_operating_characteristic_curves(
             for i in range(num_simulations_per_point):
                 batch = generator.generate_batch(
                     f"oc_{p}_{i}",
-                    vendor=DEFAULT_VENDORS["vendor_flaky"],
+                    vendor=vendor,
                     batch_size=10_000,
                     forced_error_rate=p,
                 )
@@ -86,8 +87,9 @@ def plot_budget_vs_mae(
     """
     budgets = [0.002, 0.005, 0.010, 0.015, 0.020, 0.025]
     generator = BatchGenerator(seed=456)
+    vendor = list(generator.generate_random_vendors(num_vendors=1).values())[0]
     test_batches = [
-        generator.generate_batch(f"b_{i}", DEFAULT_VENDORS["vendor_flaky"], batch_size=10_000)
+        generator.generate_batch(f"b_{i}", vendor, batch_size=10_000)
         for i in range(num_batches)
     ]
     

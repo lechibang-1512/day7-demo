@@ -4,6 +4,7 @@ Base Strategy Interface for Batch Quality Audits.
 
 from abc import ABC, abstractmethod
 from typing import Optional, Dict, Any
+import numpy as np
 from src.types import Batch, AuditResult, QualityThresholds
 from src.decision_policy import AcceptanceDecisionPolicy
 
